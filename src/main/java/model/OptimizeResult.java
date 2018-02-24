@@ -1,24 +1,27 @@
 package model;
 
-public class OptimizeMethod {
+import java.util.ArrayList;
+
+public class OptimizeResult {
 
     String method;//修改的方法，目前是修改值和修改约束两种
     String valueChange;//具体修改的那个约束
     String newConstraints;//修改后新的约束
     double value;//修改后最终的优化结果
+    ArrayList<String> param_value = new ArrayList<String>(); //最终优化结果的每个变量以及对应的值
 
-    public OptimizeMethod(String method, String valueChange) {
+    public OptimizeResult(String method, String valueChange) {
         this.method = method;
         this.valueChange = valueChange;
     }
 
-    public OptimizeMethod(String method, String valueChange, String newConstraints) {
+    public OptimizeResult(String method, String valueChange, String newConstraints) {
         this.method = method;
         this.valueChange = valueChange;
         this.newConstraints = newConstraints;
     }
 
-    public OptimizeMethod(String method, String valueChange, double value) {
+    public OptimizeResult(String method, String valueChange, double value) {
         this.method = method;
         this.valueChange = valueChange;
         this.value = value;
@@ -54,6 +57,18 @@ public class OptimizeMethod {
 
     public void setNewConstraints(String newConstraints) {
         this.newConstraints = newConstraints;
+    }
+
+    public void addParamValue(String str){
+        param_value.add(str);
+    }
+
+    public void cleanParamValue(){
+        param_value.clear();
+    }
+
+    public ArrayList<String> getParam_value() {
+        return param_value;
     }
 
     @Override

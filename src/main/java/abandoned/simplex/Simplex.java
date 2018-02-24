@@ -312,48 +312,48 @@ public class Simplex {
 
 
     // test client
-    public static void main(String[] args) {
-
-        /*
-        try {
-            test1();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        System.out.println("--------------------------------");
-
-        try                 { test2();             }
-        catch (Exception e) { e.printStackTrace(); }
-        System.out.println("--------------------------------");
-
-        try                 { test3();             }
-        catch (Exception e) { e.printStackTrace(); }
-        System.out.println("--------------------------------");
-
-        try                 { test4();             }
-        catch (Exception e) { e.printStackTrace(); }
-        System.out.println("--------------------------------");
-
-*/
-        try                 { test5();             }
-        catch (Exception e) { e.printStackTrace(); }
-        System.out.println("--------------------------------");
-
-        /*
-        int M = Integer.parseInt(args[0]);
-        int N = Integer.parseInt(args[1]);
-        double[] c = new double[N];
-        double[] b = new double[M];
-        double[][] A = new double[M][N];
-        for (int j = 0; j < N; j++)
-            c[j] = new Random().nextInt(1000);
-        for (int i = 0; i < M; i++)
-            b[i] = new Random().nextInt(1000);
-        for (int i = 0; i < M; i++)
-            for (int j = 0; j < N; j++)
-                A[i][j] = new Random().nextInt(100);
-        Simplex lp = new Simplex(A, b, c);
-        System.out.println(lp.value());
-        */
-    }
+//    public static void main(String[] args) {
+//
+//        /*
+//        try {
+//            test1();
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//        System.out.println("--------------------------------");
+//
+//        try                 { test2();             }
+//        catch (Exception e) { e.printStackTrace(); }
+//        System.out.println("--------------------------------");
+//
+//        try                 { test3();             }
+//        catch (Exception e) { e.printStackTrace(); }
+//        System.out.println("--------------------------------");
+//
+//        try                 { test4();             }
+//        catch (Exception e) { e.printStackTrace(); }
+//        System.out.println("--------------------------------");
+//
+//*/
+//        try                 { test5();             }
+//        catch (Exception e) { e.printStackTrace(); }
+//        System.out.println("--------------------------------");
+//
+//        /*
+//        int M = Integer.parseInt(args[0]);
+//        int N = Integer.parseInt(args[1]);
+//        double[] c = new double[N];
+//        double[] b = new double[M];
+//        double[][] A = new double[M][N];
+//        for (int j = 0; j < N; j++)
+//            c[j] = new Random().nextInt(1000);
+//        for (int i = 0; i < M; i++)
+//            b[i] = new Random().nextInt(1000);
+//        for (int i = 0; i < M; i++)
+//            for (int j = 0; j < N; j++)
+//                A[i][j] = new Random().nextInt(100);
+//        Simplex lp = new Simplex(A, b, c);
+//        System.out.println(lp.value());
+//        */
+//    }
 }

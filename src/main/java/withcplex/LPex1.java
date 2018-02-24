@@ -66,10 +66,8 @@ public class LPex1 {
 
          // solve the model and display the solution if one was found
          if ( cplex.solve() ) {
-            //获得每个变量的值
+            //TODO 获得每个变量的值
             double[] x     = cplex.getValues(var[0]);
-
-
             double[] dj    = cplex.getReducedCosts(var[0]);
             double[] pi    = cplex.getDuals(rng[0]);
             double[] slack = cplex.getSlacks(rng[0]);

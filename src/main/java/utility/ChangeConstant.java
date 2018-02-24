@@ -1,7 +1,7 @@
 package utility;
 
 import ilog.concert.IloConstraint;
-import model.OptimizeMethod;
+import model.OptimizeResult;
 
 /**
  * 修改优化约束的常量（不等号右边）的值
@@ -9,7 +9,14 @@ import model.OptimizeMethod;
 public class ChangeConstant{
 
 //TODO
-    public static OptimizeMethod changeValue(String constraints, IloConstraint[] iis){
+    public static OptimizeResult changeValue(String constraints, IloConstraint[] iis){
+        String[] iisConstraints = new String[iis.length];
+        int i=0;
+        for(IloConstraint iloConstraint:iis){
+            iisConstraints[i]=iis[i].toString();
+            i++;
+        }
+
 
         return null;
     }
