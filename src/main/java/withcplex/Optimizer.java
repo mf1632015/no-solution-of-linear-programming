@@ -116,7 +116,7 @@ public class Optimizer {
                     System.out.println(constraint);
                 }
 
-                // 通过优化约束变量来优化目标，变量应该取满足所求结果的最小值
+                // TODO 通过优化约束变量来优化目标，变量应该取满足所求结果的最小值（这个应该是要不断优化的）
                 OptimizeResult optimizeResult = ChangeConstant.changeValue(constraints, iis);
                 assert optimizeResult != null;
                 targetOptimizeResult = obtainOptimizerResult(optimizeResult,isMax, targetOptimizeResult,target);
