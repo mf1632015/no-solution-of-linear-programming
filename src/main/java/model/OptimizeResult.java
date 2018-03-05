@@ -4,11 +4,11 @@ import java.util.ArrayList;
 
 public class OptimizeResult {
 
-    String method;//修改的方法，目前是修改值和修改约束两种
-    String valueChange;//具体修改的那个约束
-    String newConstraints;//修改后新的约束
-    double value;//修改后最终的优化结果
-    ArrayList<String> param_value = new ArrayList<String>(); //最终优化结果的每个变量以及对应的值
+    private String method;//修改的方法，目前是修改值和修改约束两种
+    private String valueChange;//具体修改的那个约束
+    private String newConstraints;//修改后新的约束
+    private double value;//修改后最终的优化结果
+    private ArrayList<String> param_value = new ArrayList<String>(); //最终优化结果的每个变量以及对应的值
 
     public OptimizeResult(String method, String valueChange) {
         this.method = method;
@@ -73,7 +73,8 @@ public class OptimizeResult {
 
     @Override
     public String toString() {
-        return method +" "+ valueChange +" "+" value is " +value;
+        return method +" "+ valueChange +" ";
+//        +" value is " +value;
 
     }
 }

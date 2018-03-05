@@ -64,7 +64,7 @@ public class ReduceConstraints {
             for (String constrain : originalConstraints) {
 //                System.out.println("aaa");
                 if (constrain.contains(leftParam) && constrain.contains(rightParam)) {
-                    //TODO 对lb和ub进行处理
+                    //对lb和ub进行处理
                     if (lb == -1 && ub != -1) {
                         String[] split = constrain.split("<=");
                         if (split.length == 3) {

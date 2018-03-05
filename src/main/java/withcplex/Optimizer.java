@@ -115,8 +115,6 @@ public class Optimizer {
                 for (IloConstraint constraint : iis) {
                     System.out.println(constraint);
                 }
-
-                // TODO 通过优化约束变量来优化目标，变量应该取满足所求结果的最小值（这个应该是要不断优化的）
                 OptimizeResult optimizeResult = ChangeConstant.changeValue(constraints, iis);
                 assert optimizeResult != null;
                 targetOptimizeResult = obtainOptimizerResult(optimizeResult,isMax, targetOptimizeResult,target);
@@ -170,6 +168,7 @@ public class Optimizer {
         OptimizeResult optimizeResult = optimizer.optimize(constraints, 1, "1x+1y", false);
         System.out.println(optimizeResult);
         System.out.println(optimizeResult.getParam_value());
+        System.out.println(" 优化后的结果为："+optimizeResult.getValue());
     }
 
 }
