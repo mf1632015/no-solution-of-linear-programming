@@ -165,7 +165,7 @@ public class Optimizer {
     public static void main(String[] args) {
         String constraints = "0<=x-y<=5\n6<=x-y\ny-z<=3";
         Optimizer optimizer = new Optimizer();
-        OptimizeResult optimizeResult = optimizer.optimize(constraints, 1, "1x+1y", false);
+        OptimizeResult optimizeResult = optimizer.optimize(constraints, 2, "1x+1y", false);
         System.out.println(optimizeResult);
         System.out.println(optimizeResult.getParam_value());
         System.out.println(" 优化后的结果为："+optimizeResult.getValue());

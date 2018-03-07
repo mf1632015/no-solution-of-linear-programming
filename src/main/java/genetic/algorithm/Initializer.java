@@ -1,4 +1,7 @@
 package genetic.algorithm;
+
+import java.util.HashMap;
+
 /**
  * TODO 负责初始化种群，重点涉及
  * 基本思路是遍历所有约束，给每个变量赋值
@@ -13,4 +16,14 @@ package genetic.algorithm;
  * 4. 对上述所有变量随机加上一个常数（>0），则可以得到其他好多个点。
  */
 public class Initializer {
+    public void generteInitialPopulation(String constraints){
+        String[] constraintsArray = constraints.split("\n");
+        HashMap<String,Double> keyValue = new HashMap<String, Double>();
+        for(int i=0;i<constraintsArray.length;i++){
+            String currentConstrain = constraintsArray[i];
+            String[] consSpli = currentConstrain.split("<=");
+        }
+    }
+
+
 }

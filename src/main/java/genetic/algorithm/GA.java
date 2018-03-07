@@ -9,7 +9,7 @@ import java.util.Random;
  */
 public class GA {
 
-    public OptimizeResult geneticAlgorithm(){
+    public OptimizeResult geneticAlgorithm(int population,double mutationRate,int geneation){
         //1. 选择初始可行解（初始可行解的求解是个难题）
 
         //2.根据初始可行解，繁衍后代，变异，遗传，选择（这也是一个难题，如何确定后代也是可行的）
