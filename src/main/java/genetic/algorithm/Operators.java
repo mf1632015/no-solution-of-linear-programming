@@ -18,4 +18,18 @@ package genetic.algorithm;
 public class Operators {
 
 
+    public void crossFertilize(){
+
+    }
+
+    public void mutationByUniform(){
+
+    }
+    public void mutationByBounded(){
+
+    }
+    public void mutationByUnUniform(){
+
+    }
+
 }
