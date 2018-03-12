@@ -84,7 +84,7 @@ public class LpModel {
                 Pattern pattern1 = Pattern.compile("^[-\\+]?[\\d]*$");
                 Pattern pattern2 = Pattern.compile("^[-\\+]?[.\\d]*$");
                 //5<= a - b
-                if(pattern1.matcher(splitConstraints[0]).matches()||pattern1.matcher(splitConstraints[0]).matches()) {
+                if (pattern1.matcher(splitConstraints[0]).matches() || pattern1.matcher(splitConstraints[0]).matches()) {
 
                     lbArr[i] = Double.parseDouble(splitConstraints[0]);
                     ubArr[i] = -1;
@@ -100,8 +100,8 @@ public class LpModel {
                     if (!varList.contains(varName[1])) {
                         varList.add(varName[1]);
                     }
-                }else{//a-b<=10
-                    lbArr[i] = -1 ;
+                } else {//a-b<=10
+                    lbArr[i] = -1;
                     ubArr[i] = Double.parseDouble(splitConstraints[1]);
                     // save the variable
                     String[] varName = splitConstraints[0].split("-");
@@ -140,34 +140,36 @@ public class LpModel {
         IloNumVar[] x = model.numVarArray(length, lbPara, ubPara, varName);
 
         //增加目标
-        //1.初始化一个数组为全0
-        double[] objvas = new double[x.length];
-        Arrays.fill(objvas, 0.0);
-        //2. 找到所有系数和变量以及运算符
-        String pattern = "[\\+-]?\\d+";
-        String params[] = target.split(pattern);
-        Pattern regex = Pattern.compile(pattern);
-        Matcher matcher = regex.matcher(target);
-        int index=1;
-        while (matcher.find()) {
-            String coffei = matcher.group();
-            if (coffei.equals("-")) {
-                coffei = "-1.0";
+        if (target != null) {
+            //1.初始化一个数组为全0
+            double[] objvas = new double[x.length];
+            Arrays.fill(objvas, 0.0);
+            //2. 找到所有系数和变量以及运算符
+            String pattern = "[\\+-]?\\d+";
+            String params[] = target.split(pattern);
+            Pattern regex = Pattern.compile(pattern);
+            Matcher matcher = regex.matcher(target);
+            int index = 1;
+            while (matcher.find()) {
+                String coffei = matcher.group();
+                if (coffei.equals("-")) {
+                    coffei = "-1.0";
+                }
+                if (coffei.equals("+")) {
+                    coffei = "+1.0";
+                }
+                //系数
+                double c = Double.parseDouble(coffei);
+                String param = params[index];
+                int paramIndex = varList.indexOf(param);
+                objvas[paramIndex] = c;
+                index++;
             }
-            if (coffei.equals("+")) {
-                coffei = "+1.0";
+            if (isMax) {
+                model.addMaximize(model.scalProd(x, objvas));
+            } else {
+                model.addMinimize(model.scalProd(x, objvas));
             }
-            //系数
-            double c = Double.parseDouble(coffei);
-            String param = params[index];
-            int paramIndex = varList.indexOf(param);
-            objvas[paramIndex]=c;
-            index++;
-        }
-        if (isMax) {
-            model.addMaximize(model.scalProd(x, objvas));
-        } else {
-            model.addMinimize(model.scalProd(x, objvas));
         }
 
         //增加线性约束
@@ -179,7 +181,7 @@ public class LpModel {
                 if (ubArr[j] != -1) {
                     model.addLe(model.sum(model.prod(1.0, x[m]), model.prod(-1.0, x[n])), ubArr[j]);
                 }
-                if(lbArr[j]!=-1){
+                if (lbArr[j] != -1) {
                     model.addGe(model.sum(model.prod(1.0, x[m]), model.prod(-1.0, x[n])), lbArr[j]);
                 }
             }
