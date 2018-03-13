@@ -46,6 +46,7 @@ public class InequationSimplify {
 //    }
 
     //通过不等式的传递性，将不等式简化到最简形式。
+    // 然后计算出所差的值（小于等于和大于等于之间差的值），根据差值来分配
     //比如注释中的例子，可以简化为：
     public String[] simplifyInequalities(String[] inequalities){
         //存储化简后的不等式
