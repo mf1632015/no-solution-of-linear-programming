@@ -1,4 +1,4 @@
-package abandoned.form;
+package unsolved2solved;
 
 import java.util.ArrayList;
 
@@ -27,32 +27,30 @@ import java.util.ArrayList;
  IloRange  : 0.0 <= (-1.0*b5 + 1.0*c1) <= infinity
  IloRange  : 0.0 <= (1.0*c2 - 1.0*c1) <= infinity
  */
-public class IISToStandard {
+public class InequationSimplify {
 
 
-    public StandardForm toStandardForm(String iis){
-        String[] inequalities = iis.split("\n");
-        String[] simplifiedInequalities = simplifyInequalities(inequalities);
-        double[] lb= new double[inequalities.length];
-        double[] rb = new double[inequalities.length];
-        int i=0;
-        int index=0;
-        for(String str:inequalities){
-            String inequality = str.split(":")[1];
-
-            i++;
-        }
-
-        return new StandardForm();
-    }
+//    public InequationSimplify toStandardForm(String iis){
+//        String[] inequalities = iis.split("\n");
+//        String[] simplifiedInequalities = simplifyInequalities(inequalities);
+//        double[] lb= new double[inequalities.length];
+//        double[] rb = new double[inequalities.length];
+//        int i=0;
+//        int index=0;
+//        for(String str:inequalities){
+//            String inequality = str.split(":")[1];
+//
+//            i++;
+//        }
+//        return new InequationSimplify();
+//    }
 
     //通过不等式的传递性，将不等式简化到最简形式。
     //比如注释中的例子，可以简化为：
-    private String[] simplifyInequalities(String[] inequalities){
+    public String[] simplifyInequalities(String[] inequalities){
         //存储化简后的不等式
         ArrayList<String> afterSimplifiedInequalities = new ArrayList<String>();
 
-        //
         int length = inequalities.length;
         ArrayList<String> leftVarityies = new ArrayList<String>();
         ArrayList<String> rightVarities = new ArrayList<String>();
@@ -66,7 +64,4 @@ public class IISToStandard {
         return new String[10];
     }
 
-//    public static void main(String[] args) {
-//
-//    }
 }

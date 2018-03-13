@@ -1,11 +1,10 @@
-package utility;
+package unsolved2solved;
 
 import ilog.concert.IloConstraint;
 import model.OptimizeResult;
 
 import java.util.Arrays;
 import java.util.regex.Pattern;
-import java.util.zip.DeflaterOutputStream;
 
 /**
  * 修改优化约束的常量（不等号右边）的值

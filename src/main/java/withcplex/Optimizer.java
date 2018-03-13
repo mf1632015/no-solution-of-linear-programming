@@ -5,8 +5,8 @@ import ilog.concert.IloException;
 import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;
 import model.OptimizeResult;
-import utility.ChangeConstant;
-import utility.ReduceConstraints;
+import unsolved2solved.ChangeConstant;
+import unsolved2solved.ReduceConstraints;
 
 /**
  *  结合cplex优化无解的线性规划问题。

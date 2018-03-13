@@ -1,10 +1,8 @@
-package utility;
+package unsolved2solved;
 
 import ilog.concert.IloConstraint;
 import model.OptimizeResult;
 
-import java.util.Arrays;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
