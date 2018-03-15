@@ -5,6 +5,9 @@ import ilog.concert.IloConstraint;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+/**
+ * 用来化简IIS约束
+ */
 public class IISConstraintResolve {
 
     public static String[] resolveIIS(IloConstraint[] iis) {
@@ -15,7 +18,7 @@ public class IISConstraintResolve {
         return resolveIIS(iisConstraints.split("\n"));
     }
 
-    private static String[] resolveIIS(String[] iis){
+    public static String[] resolveIIS(String[] iis){
         ArrayList<String> iisList = new ArrayList<String>();
         for(String str:iis){
             if(iis.equals("")){

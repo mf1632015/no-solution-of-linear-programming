@@ -10,6 +10,9 @@ public class OptimizeResult {
     private double value;//修改后最终的优化结果
     private ArrayList<String> param_value = new ArrayList<String>(); //最终优化结果的每个变量以及对应的值
 
+    public OptimizeResult() {
+    }
+
     public OptimizeResult(String method, String valueChange) {
         this.method = method;
         this.valueChange = valueChange;
