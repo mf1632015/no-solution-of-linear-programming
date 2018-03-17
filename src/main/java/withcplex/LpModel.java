@@ -84,7 +84,7 @@ public class LpModel {
                 Pattern pattern1 = Pattern.compile("^[-\\+]?[\\d]*$");
                 Pattern pattern2 = Pattern.compile("^[-\\+]?[.\\d]*$");
                 //5<= a - b
-                if (pattern1.matcher(splitConstraints[0]).matches() || pattern1.matcher(splitConstraints[0]).matches()) {
+                if (pattern1.matcher(splitConstraints[0]).matches() || pattern2.matcher(splitConstraints[0]).matches()) {
 
                     lbArr[i] = Double.parseDouble(splitConstraints[0]);
                     ubArr[i] = -1;

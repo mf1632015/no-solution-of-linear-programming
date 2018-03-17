@@ -13,6 +13,8 @@ public class Inequality {
     private ArrayList<Inequality> formerList ;
     private ArrayList<Inequality> nextList  ;
 
+    private double valueChanged;
+
     public Inequality(double le, double ge, String subtractor, String minuend) {
         this.le = le;
         this.ge = ge;
@@ -34,6 +36,14 @@ public class Inequality {
             this.nextList.addAll(nextList);
 
         }
+    }
+
+    public double getValueChanged() {
+        return valueChanged;
+    }
+
+    public void setValueChanged(double valueChanged) {
+        this.valueChanged = valueChanged;
     }
 
     public void addFormer(Inequality inequality){

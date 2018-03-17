@@ -9,6 +9,25 @@ public class TreePath {
         this.path = new ArrayList<Inequality>();
     }
 
+    public boolean containsVariable(String variable){
+        boolean b=false;
+        for(Inequality inequality:path){
+            if(inequality.getSubtractor().equals(variable)||inequality.getMinuend().equals(variable)){
+                b=true;
+                break;
+            }
+        }
+        return b;
+    }
+
+    public Inequality getFirst(){
+        return path.get(0);
+    }
+
+    public Inequality getLast(){
+        return path.get(path.size()-1);
+    }
+
     public void addNode(Inequality inequality){
         path.add(inequality);
     }

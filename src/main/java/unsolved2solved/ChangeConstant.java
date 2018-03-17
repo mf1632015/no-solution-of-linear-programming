@@ -1,14 +1,20 @@
 package unsolved2solved;
 
 import ilog.concert.IloConstraint;
+import ilog.concert.IloException;
+import ilog.concert.IloNumVar;
+import ilog.cplex.IloCplex;
 import model.Inequality;
 import model.OptimizeResult;
 import model.TreePath;
+import model.TreePathPair;
+import withcplex.LpModel;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Stack;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
@@ -21,190 +27,257 @@ public class ChangeConstant {
 
     public OptimizeResult changeValue(String allConstraints, IloConstraint[] iis, String[] hardConstraints, int type) {
         String[] iisConstraints = IISConstraintResolve.resolveIIS(iis);
+        ArrayList<Inequality> inequalityArrayList = new InequationSimplify().simplifyInequalities(iisConstraints);
+        //进行分类，分为小于等于和大于等于两类
+        ArrayList<Inequality> leInequalityList = new ArrayList<Inequality>();
+        ArrayList<Inequality> geInequalityList = new ArrayList<Inequality>();
+        classify(inequalityArrayList, leInequalityList, geInequalityList);
+
         switch (type) {
             case 1:
-                return extendRange(allConstraints, iisConstraints);
+                return extendRange(allConstraints, geInequalityList, leInequalityList);
             case 2:
-                return dwindleRange(allConstraints, iisConstraints);
+                return dwindleRange(allConstraints, geInequalityList, leInequalityList);
             case 3:
-                return microTuning(allConstraints, iisConstraints);
+                return microTuning(allConstraints, geInequalityList, leInequalityList);
             default:
-                return microTuning(allConstraints, iisConstraints);
+                return microTuning(allConstraints, geInequalityList, leInequalityList);
         }
-
     }
 
-    public static OptimizeResult changeValue(String allConstraints, IloConstraint[] iis) {
-        return null;
-    }
 
     // 如果有硬约束和软约束，需要分别进行处理的
-    private OptimizeResult extendRange(String allConstraints, String[] iisConstraints) {
+    private OptimizeResult extendRange(String allConstraints, ArrayList<Inequality> geInequalityList, ArrayList<Inequality> leInequalityList) {
         OptimizeResult optimizeResult = new OptimizeResult("增大右值", "");
-        ArrayList<Inequality> inequalityArrayList = new InequationSimplify().simplifyInequalities(iisConstraints);
-        //先找到没有former的不等式
-        ArrayList<Inequality> rootList = findRoot(inequalityArrayList);
+        // 1. 分别对大于等于和小于等于进行求和
+        double leTotal = 0.0;
+        double geTotal = 0.0;
+        for (Inequality inequality : leInequalityList) {
+            leTotal += inequality.getLe();
+        }
+        for (Inequality inequality : geInequalityList) {
+            geTotal += inequality.getGe();
+        }
+        //必须是le<ge，否则就不是IIS集合了
 
-        //找到所有path
-        ArrayList<TreePath> treePaths = findAllPath(rootList);
+        // 2. 求二者的差
+        double difference = geTotal - leTotal + 5;
 
-        //处理path，找到所有矛盾的变量
+        // 3. 然后根据差值修改
+        allConstraints = changeAllConstraintsByExtend(allConstraints, leInequalityList, difference, optimizeResult);
 
-        //从没有former的不等式开始（这是root），依次next，求不等式le和ge所有的和,并将所有的都化简为最简形式
-//        ArrayList<Inequality> simplifiesList = simplifyEqualities(rootList);
-        //可能是好几组不可行，分别进行处理,对小于等于那一边，也就是le那一边的数字，进行扩大
-//        ArrayList<Inequality> resolvedInequality = new ArrayList<Inequality>();
-//        for (int i = 0; i < simplifiesList.size(); i++) {
-//            Inequality inequality1 = simplifiesList.get(i);
-//            if (resolvedInequality.contains(inequality1)) {
-//                continue;
-//            }
-//            for (int j = 0; j < simplifiesList.size(); j++) {
-//                Inequality inequality2 = simplifiesList.get(j);
-//                if (j == i || resolvedInequality.contains(inequality2)) {
-//                    continue;
-//                }
-//                if (inequality1.getSubtractor().equals(inequality2.getSubtractor()) && inequality1.getMinuend().equals(inequality2.getMinuend())) {
-//                    double le1 = inequality1.getLe();
-//                    double ge1 = inequality1.getGe();
-//                    double le2 = inequality2.getLe();
-//                    double ge2 = inequality2.getGe();
-//                    String valueChange = optimizeResult.getValueChange();
-//                    if (le1 < 0) {
-//                        //修改allConstraints
-//                        allConstraints = changeAllConstraintsByExtend(allConstraints, inequality2, ge1 - le2, rootList, optimizeResult);
-//                    } else {
-//                        allConstraints = changeAllConstraintsByExtend(allConstraints, inequality1, ge2 - le1, rootList, optimizeResult);
-//                    }
-//                    resolvedInequality.add(inequality1);
-//                    resolvedInequality.add(inequality2);
-//                    optimizeResult.setValueChange(valueChange);
-//                }
-//            }
-//        }
         optimizeResult.setNewConstraints(allConstraints);
         return optimizeResult;
     }
 
-    private OptimizeResult dwindleRange(String allConstraints, String[] iisConstraints) {
+
+    private OptimizeResult dwindleRange(String allConstraints, ArrayList<Inequality> geInequalityList, ArrayList<Inequality> leInequalityList) {
         OptimizeResult optimizeResult = new OptimizeResult("减小左值", "");
-        ArrayList<Inequality> inequalityArrayList = new InequationSimplify().simplifyInequalities(iisConstraints);
-        //先找到没有former的不等式
-        ArrayList<Inequality> rootList = findRoot(inequalityArrayList);
-        //找到所有path
-        ArrayList<TreePath> treePaths = findAllPath(rootList);
-        /*
-        //从没有former的不等式开始（这是root），依次next，求不等式le和ge所有的和,并将所有的都化简为最简形式
-        ArrayList<Inequality> simplifiesList = simplifyEqualities(rootList);
-        ArrayList<Inequality> resolvedInequality = new ArrayList<Inequality>();
-        for (int i = 0; i < simplifiesList.size(); i++) {
-            Inequality inequality1 = simplifiesList.get(i);
-            if (resolvedInequality.contains(inequality1)) {
-                continue;
-            }
-            for (int j = 0; j < simplifiesList.size(); j++) {
-                Inequality inequality2 = simplifiesList.get(j);
-                if (j == i || resolvedInequality.contains(inequality2)) {
-                    continue;
-                }
-                if (inequality1.getSubtractor().equals(inequality2.getSubtractor()) && inequality1.getMinuend().equals(inequality2.getMinuend())) {
-                    double le1 = inequality1.getLe();
-                    double ge1 = inequality1.getGe();
-                    double le2 = inequality2.getLe();
-                    double ge2 = inequality2.getGe();
-                    String valueChange = optimizeResult.getValueChange();
-                    if (le1 < 0) {
-                        //修改allConstraints
-                        allConstraints = changeAllConstraintsByDwindle(allConstraints, inequality1, ge1 - le2, rootList, optimizeResult);
-                    } else {
-                        allConstraints = changeAllConstraintsByDwindle(allConstraints, inequality2, ge2 - le1, rootList, optimizeResult);
-                    }
-                    resolvedInequality.add(inequality1);
-                    resolvedInequality.add(inequality2);
-                    optimizeResult.setValueChange(valueChange);
-                }
-            }
-        }*/
+        // 1. 分别对大于等于和小于等于进行求和
+        double leTotal = 0.0;
+        double geTotal = 0.0;
+        for (Inequality inequality : leInequalityList) {
+            leTotal += inequality.getLe();
+        }
+        for (Inequality inequality : geInequalityList) {
+            geTotal += inequality.getGe();
+        }
+        //必须是le<ge，否则就不是IIS集合了
+
+        // 2. 求二者的差
+        double difference = geTotal - leTotal;
+
+        // 3. 然后根据差值修改
+        allConstraints = changeAllConstraintsByDwindle(allConstraints, geInequalityList, difference, optimizeResult);
+
         optimizeResult.setNewConstraints(allConstraints);
         return optimizeResult;
     }
 
-    private OptimizeResult microTuning(String allConstraints, String[] iisConstraints) {
+    private OptimizeResult microTuning(String allConstraints, ArrayList<Inequality> geInequalityList, ArrayList<Inequality> leInequalityList) {
         OptimizeResult optimizeResult = new OptimizeResult("均匀微调", "");
-        ArrayList<Inequality> inequalityArrayList = new InequationSimplify().simplifyInequalities(iisConstraints);
-        //先找到没有former的不等式
-        ArrayList<Inequality> rootList = findRoot(inequalityArrayList);
-        //找到所有path
-        ArrayList<TreePath> treePaths = findAllPath(rootList);
-        /*
-        //从没有former的不等式开始（这是root），依次next，求不等式le和ge所有的和,并将所有的都化简为最简形式
-        ArrayList<Inequality> simplifiesList = simplifyEqualities(rootList);
-        ArrayList<Inequality> resolvedInequality = new ArrayList<Inequality>();
-        for (int i = 0; i < simplifiesList.size(); i++) {
-            Inequality inequality1 = simplifiesList.get(i);
-            if (resolvedInequality.contains(inequality1)) {
-                continue;
-            }
-            for (int j = 0; j < simplifiesList.size(); j++) {
-                Inequality inequality2 = simplifiesList.get(j);
-                if (j == i || resolvedInequality.contains(inequality2)) {
-                    continue;
-                }
-                if (inequality1.getSubtractor().equals(inequality2.getSubtractor()) && inequality1.getMinuend().equals(inequality2.getMinuend())) {
-                    double le1 = inequality1.getLe();
-                    double ge1 = inequality1.getGe();
-                    double le2 = inequality2.getLe();
-                    double ge2 = inequality2.getGe();
-                    String valueChange = optimizeResult.getValueChange();
-                    if (le1 < 0) {
-                        //修改allConstraints
-                        allConstraints = changeAllConstraintsByMicroTunning(allConstraints, inequality1, inequality2, ge1 - le2, rootList, optimizeResult);
-                    } else {
-                        allConstraints = changeAllConstraintsByMicroTunning(allConstraints, inequality2, inequality2, ge2 - le1, rootList, optimizeResult);
-                    }
-                    resolvedInequality.add(inequality1);
-                    resolvedInequality.add(inequality2);
-                    optimizeResult.setValueChange(valueChange);
-                }
-            }
+
+        // 1. 分别对大于等于和小于等于进行求和
+        double leTotal = 0.0;
+        double geTotal = 0.0;
+        for (Inequality inequality : leInequalityList) {
+            leTotal += inequality.getLe();
         }
-        */
+        for (Inequality inequality : geInequalityList) {
+            geTotal += inequality.getGe();
+        }
+        //必须是le<ge，否则就不是IIS集合了
+
+        // 2. 求二者的差
+        double difference = geTotal - leTotal;
+
+        // 3. 然后根据差值修改
+        allConstraints = changeAllConstraintsByMicroTunning(allConstraints, leInequalityList, geInequalityList, difference, optimizeResult);
+
         optimizeResult.setNewConstraints(allConstraints);
         return optimizeResult;
     }
 
-    private String changeAllConstraintsByExtend(String allConstraints, Inequality inequality, double value, ArrayList<Inequality> rootList, OptimizeResult optimizeResult) {
-        // 0.对于要修改的小于等于的IIS，根据value值，除以修改的个数，然后每个小于等于都加上这个数字
-        double le = inequality.getLe();
-        double ge = inequality.getGe();
-        String leftVariable = inequality.getSubtractor();
-        String rightVariable = inequality.getMinuend();
-        double absGe = Math.abs(ge);
-        double addValue = value / absGe + 1;
-        // 1.找到要修改的root不等式
-        for (Inequality inequality1 : rootList) {
-            if (inequality1.getSubtractor().equals(leftVariable) && inequality1.getGe() < 0) {
-
+    private void classify(ArrayList<Inequality> inequalityArrayList, ArrayList<Inequality> leInequalityList, ArrayList<Inequality> geInequalityList) {
+        for (Inequality inequality : inequalityArrayList) {
+            if (inequality.getLe() < 0) {
+                geInequalityList.add(inequality);
+            } else {
+                leInequalityList.add(inequality);
             }
         }
-
-        // 2.遍历该根root不等式，找到要修改的路径，对路径中每个不等式
-
-        // 3.
-        return null;
     }
 
-    private String changeAllConstraintsByDwindle(String allConstraints, Inequality inequality, double value, ArrayList<Inequality> rootList, OptimizeResult optimizeResult) {
+    private String changeAllConstraintsByExtend(String allConstraints, ArrayList<Inequality> leInequalityList, double value, OptimizeResult optimizeResult) {
+        int size = leInequalityList.size();
+        double averageValue = value / size;
+        for (Inequality inequality : leInequalityList) {
+            double originLe = inequality.getLe();
+            double newLe = originLe + averageValue;
+            inequality.setLe(newLe);
+            inequality.setValueChanged(averageValue);
+
+            String valueChange = optimizeResult.getValueChange();
+            valueChange += "change " + inequality.getSubtractor() + "-" + inequality.getMinuend() + "<=" + originLe + " to " + inequality.getSubtractor() + "-" + inequality.getMinuend() + "<=" + newLe+"; ";
+            optimizeResult.setValueChange(valueChange);
+        }
+        return changeValue(allConstraints, leInequalityList);
+    }
+
+
+    private String changeAllConstraintsByDwindle(String allConstraints, ArrayList<Inequality> geInequalityList, double value, OptimizeResult optimizeResult) {
         //对于要修改的大于等于的IIS，根据value值，根据每个大于0的IIS不等式的值，按比例分配减去的值；
         //比如，要修改的有10个不等式，但是其中只有三个不等式大于0，分别是10<=;20<=;30<=,那么将value值分为6份，10对应1份，20对应2份，30对应3份
+        double geTotal = 0.0;
+        for (Inequality inequality : geInequalityList) {
+            geTotal += inequality.getGe();
+        }
+        for (Inequality inequality : geInequalityList) {
+            double originGe = inequality.getGe();
+            double newGe = originGe - originGe / geTotal * value;
+            newGe = newGe * 9 / 10;
+            inequality.setGe(newGe);
+            inequality.setValueChanged(originGe - newGe);
 
-        return null;
+            if ((originGe - newGe) != 0) {
+                String valueChange = optimizeResult.getValueChange();
+                valueChange += "change " + originGe + "<=" + inequality.getSubtractor() + "-" + inequality.getMinuend() + " to " + newGe + "<=" + inequality.getSubtractor() + "-" + inequality.getMinuend()+"; ";
+                optimizeResult.setValueChange(valueChange);
+            }
+        }
+        return changeValue(allConstraints, geInequalityList);
     }
 
-    private String changeAllConstraintsByMicroTunning(String allConstraints, Inequality inequality2, Inequality inequality, double value, ArrayList<Inequality> rootList, OptimizeResult optimizeResult) {
+    private String changeAllConstraintsByMicroTunning(String allConstraints, ArrayList<Inequality> leInequalityList, ArrayList<Inequality> geInequalityList, double value, OptimizeResult optimizeResult) {
+        double totalLeGe = 0.0;
+        for (Inequality inequality : leInequalityList) {
+            totalLeGe += inequality.getLe();
+        }
+        for (Inequality inequality : geInequalityList) {
+            totalLeGe += inequality.getGe();
+        }
 
+        for (Inequality inequality : leInequalityList) {
+            double originLe = inequality.getLe();
+            double newLe = originLe + value / totalLeGe * originLe + 0.5;
+            inequality.setLe(newLe);
+            inequality.setValueChanged(newLe - originLe);
+            String valueChange = optimizeResult.getValueChange();
+            valueChange += "change " + inequality.getSubtractor() + "-" + inequality.getMinuend() + "<=" + originLe + " to " + inequality.getSubtractor() + "-" + inequality.getMinuend() + "<=" + newLe+"; ";
+            optimizeResult.setValueChange(valueChange);
 
-        return null;
+        }
+
+        for (Inequality inequality : geInequalityList) {
+            double originGe = inequality.getGe();
+            double newGe = originGe - originGe / totalLeGe * value;
+            inequality.setGe(newGe);
+            inequality.setValueChanged(originGe - newGe);
+
+            if ((originGe - newGe) != 0) {
+                String valueChange = optimizeResult.getValueChange();
+                valueChange += "change " + originGe + "<=" + inequality.getSubtractor() + "-" + inequality.getMinuend() + " to " + newGe + "<=" + inequality.getSubtractor() + "-" + inequality.getMinuend()+"; ";
+                optimizeResult.setValueChange(valueChange);
+            }
+        }
+        geInequalityList.addAll(leInequalityList);
+        return changeValue(allConstraints, geInequalityList);
+    }
+
+    private ArrayList<TreePathPair> findTreePathPair(ArrayList<TreePath> treePaths) {
+        ArrayList<TreePathPair> treePathPairs = new ArrayList<TreePathPair>();
+        //存储已处理的treePath
+        ArrayList<TreePath> treePathResolved = new ArrayList<TreePath>();
+        // 1.首先找首尾相同的path对
+        for (TreePath treePath : treePaths) {
+            if (treePathResolved.contains(treePath)) {
+                continue;
+            }
+            String firstVariable = treePath.getFirst().getSubtractor();
+            String lastVariable = treePath.getLast().getMinuend();
+            double firstLe = treePath.getFirst().getLe();
+            for (TreePath treePathAnother : treePaths) {
+                if (treePath == treePathAnother || treePathResolved.contains(treePathAnother)) {
+                    continue;
+                }
+                String firstVariableAnother = treePathAnother.getFirst().getSubtractor();
+                String lastVariableAnother = treePathAnother.getLast().getMinuend();
+                double firstLeAnother = treePathAnother.getFirst().getLe();
+                //如果首尾相同，且符号不同，说明一个是小于等于，一个是大于等于
+                if (firstVariable.equals(firstVariableAnother) && lastVariable.equals(lastVariableAnother)
+                        && ((firstLe < 0 && firstLeAnother >= 0) || (firstLe >= 0 && firstLeAnother < 0))) {
+                    //则这是一个TreePath对，添加
+                    TreePathPair treePathPair = new TreePathPair(treePath, treePathAnother, 0, 0);
+                    //添加tag
+                    //添加allLe和AllGe
+                    if (firstLe < 0) {
+                        treePathPair.setLeTag(2);
+                        ArrayList<Inequality> inequalities = treePath.getPath();
+                        double geTotal = 0.0;
+                        for (Inequality inequality : inequalities) {
+                            geTotal += inequality.getGe();
+                        }
+                        ArrayList<Inequality> inequalitiesAnother = treePathAnother.getPath();
+                        double leTotal = 0.0;
+                        for (Inequality inequality : inequalitiesAnother) {
+                            leTotal += inequality.getLe();
+                        }
+                        treePathPair.setLeTotal(leTotal);
+                        treePathPair.setGeTotal(geTotal);
+                    } else {
+                        treePathPair.setLeTag(1);
+
+                    }
+                    treePathPairs.add(treePathPair);
+                    //已处理
+                    treePathResolved.add(treePath);
+                    treePathResolved.add(treePathAnother);
+
+                }
+
+            }
+        }
+        // 2.然后找尾部相同，但是头部不同的对。必然是长一些的treepath包含着某个短的treepath首尾相同的路径
+        // 且这些长路径，一定在前面已经处理过的路径当中
+        for (TreePath treePath : treePaths) {
+            if (treePathResolved.contains(treePath)) {
+                continue;
+            }
+            String firstVariable = treePath.getFirst().getSubtractor();
+            String lastVariable = treePath.getLast().getMinuend();
+            double firstLe = treePath.getFirst().getLe();
+            for (TreePath treePathAnother : treePathResolved) {
+                String firstVariableAnother = treePathAnother.getFirst().getSubtractor();
+                String lastVariableAnother = treePathAnother.getLast().getMinuend();
+                double firstLeAnother = treePathAnother.getFirst().getLe();
+                if (lastVariable.equals(lastVariableAnother) && !firstVariable.equals(firstVariable)
+                        && ((firstLe < 0 && firstLeAnother >= 0) || (firstLe >= 0 && firstLeAnother < 0))) {
+
+                }
+            }
+        }
+
+        return treePathPairs;
     }
 
 
@@ -267,20 +340,18 @@ public class ChangeConstant {
 
     private Collection<? extends TreePath> findAllPath(Inequality root) {
         ArrayList<TreePath> treePaths = new ArrayList<TreePath>();
-        if(root == null){
+        if (root == null) {
             return treePaths;
-        }else if(!root.hasNext()){
+        } else if (!root.hasNext()) {
             TreePath treePath = new TreePath();
             treePath.addNode(root);
             treePaths.add(treePath);
-        }else{
-
+        } else {
             ArrayList<Inequality> nextList = root.getNextList();
-            for(Inequality inequality:nextList){
+            for (Inequality inequality : nextList) {
                 TreePath treePath = new TreePath();
                 treePath.addNode(root);
-                traverse(inequality,treePath);
-                treePaths.add(treePath);
+                traverse(inequality, treePath, treePaths);
             }
 
         }
@@ -288,30 +359,23 @@ public class ChangeConstant {
 
     }
 
-    private void traverse(Inequality inequality, TreePath treePath) {
-        if(!inequality.hasNext()){
+    private void traverse(Inequality inequality, TreePath treePath, ArrayList<TreePath> treePaths) {
+        if (!inequality.hasNext()) {
             treePath.addNode(inequality);
-        }else{
+            treePaths.add(treePath);
+        } else {
             treePath.addNode(inequality);
             ArrayList<Inequality> nextList = inequality.getNextList();
-            for(Inequality next:nextList){
-                traverse(next,treePath);
-                treePath.clear();
+            for (Inequality next : nextList) {
+                TreePath newTreePath = treePath.clone();
+                traverse(next, newTreePath, treePaths);
+
             }
         }
     }
 
 
     private ArrayList<Inequality> findRoot(ArrayList<Inequality> inequalityArrayList) {
-
-        //TODO 还有一种情况需要考虑，如下所示，并不能简单的进行只找root来解决，所以不能说具体实现，应该只考虑每一步的算法，也就是步骤。管他具体实现怎么搞呢。
-        /*
-                "IloRange  : 5.0 <= (1.0*a - 1.0*b) <= infinity\n"+
-                "IloRange  : 7.0 <= (1.0*b - 1.0*c) <= infinity\n"+
-                "IloRange  : 7.0 <= (1.0*b - 1.0*d) <= infinity\n"+
-                "IloRange  : -infinity <= (1.0*a - 1.0*c) <= 6.0\n" +
-                "IloRange  : -infinity <= (1.0*b - 1.0*d) <= 6.0";
-         */
         ArrayList<Inequality> rootList = new ArrayList<Inequality>();
         //先找到没有former的不等式
         for (Inequality inequality : inequalityArrayList) {
@@ -322,76 +386,83 @@ public class ChangeConstant {
         return rootList;
     }
 
-
     //TODO 将所有的小于等于的约束值增大为所有其他约束大于等于的和，即可让其变得有解
-    private static OptimizeResult changeValue(String constraints, String[] iisColnstraints) {
-        OptimizeResult optimizeResult = new OptimizeResult("Change constant", "");
+    private static String changeValue(String constraints, ArrayList<Inequality> inequalityArrayList) {
+
         String[] originalConstraints = constraints.split("\n");
-        double maxRange = 0;//用来存储小于等于的和
-        Pattern regexDouble = Pattern.compile("^[-\\+]?[.\\d]*$");//小数
-        Pattern regexInt = Pattern.compile("^[-\\+]?[\\d]*$");//整数
-        StringBuilder constraintsToModify = new StringBuilder();//存储待修改的约束
 
-        // 1 找到所有大于等于的和,同时记录所有包含小于等于某个值的约束的位置
-        int[] leIndex = new int[iisColnstraints.length];
-        Arrays.fill(leIndex, -1);
-        int i = 0;
-        for (String iisConstrain : iisColnstraints) {
-            String[] splitIIS = iisConstrain.split("<=");
-            if (regexDouble.matcher(splitIIS[0]).matches() || regexInt.matcher(splitIIS[0]).matches()) {
-                maxRange += Double.parseDouble(splitIIS[0]);
-            }
-            if ((splitIIS.length == 2 && (regexDouble.matcher(splitIIS[1]).matches() || regexInt.matcher(splitIIS[1]).matches())) || splitIIS.length == 3) {
-                leIndex[i] = 1;
-            }
-            i++;
-        }
-        maxRange += 10;
-        // 2 遍历每一个IIS约束，只要包括大于等于的，就需要将原来约束中的对应的该约束小于等于的值改为maxRange；
-        for (int j = 0; j < iisColnstraints.length; j++) {
-            //所有不包含小于等于的约束，都删掉。
-            if (leIndex[j] == -1) {
-                continue;
-            }
-            String[] splitIIS = iisColnstraints[j].split("<=");
+        Pattern regexDouble = Pattern.compile("^[-\\+]?[.\\d]*$");
+        Pattern regexInt = Pattern.compile("^[-\\+]?[\\d]*$");
 
-            //遍历原始约束，找到包含该约束的项目
+        // 1 遍历每一个IIS约束，只要包括大于等于的，就需要将原来约束中的对应的该约束小于等于的值改为maxRange；
+        for (Inequality inequality : inequalityArrayList) {
+            String leftVariable = inequality.getSubtractor();
+            String rightVariable = inequality.getMinuend();
+            double le = inequality.getLe();
+            double ge = inequality.getGe();
+            double valueChange = inequality.getValueChanged();
+            // 1.1遍历原始约束，找到包含该约束的项目
             for (int k = 0; k < originalConstraints.length; k++) {
                 String originConstraint = originalConstraints[k];
-                if (splitIIS.length == 2 && originConstraint.contains(splitIIS[0])) {
-                    String[] splitOrigin = originConstraint.split("<=");
-                    //如果原始约束经过<=分割后长度为2，且下标1的元素为浮点数或者整数
-                    if (splitOrigin.length == 2 && (regexDouble.matcher(splitOrigin[1]).matches() || regexInt.matcher(splitOrigin[1]).matches())
-                            && judgeEquals(Double.parseDouble(splitIIS[1]), Double.parseDouble(splitOrigin[1]))) {
-                        constraintsToModify.append(originConstraint).append(";");
-                        originalConstraints[k] = splitOrigin[0] + "<=" + maxRange;
-                    } else if (splitOrigin.length == 3 && judgeEquals(Double.parseDouble(splitIIS[1]), Double.parseDouble(splitOrigin[2]))) {
-                        constraintsToModify.append(originConstraint).append(";");
-                        originalConstraints[k] = splitOrigin[0] + "<=" + splitOrigin[1] + "<=" + maxRange;
+                String[] originConsSplit = originConstraint.split("<=");
+                // 1.2 判断原始约束是否和iis约束一致
+                double originLe = -1;
+                double originGe = -1;
+
+                if (originConsSplit.length == 3) {
+                    originGe = Double.parseDouble(originConsSplit[0]);
+                    originLe = Double.parseDouble(originConsSplit[2]);
+                    String[] variables = originConsSplit[1].split("-");
+                    String originLeftVariable = variables[0];
+                    String originRightVariable = variables[1];
+                    //如果对应的不等式的数字相等，且减数和被减数也对应相等
+                    if (((le >= 0 && originLe == (le - valueChange) || (ge >= 0 && originGe == (ge + valueChange)))
+                            && originLeftVariable.contains(leftVariable)
+                            && originRightVariable.contains(rightVariable))
+                            ) {
+                        // 1.3 直接修改originalConstraints[k]
+                        if (le > 0) {
+                            originalConstraints[k] = originConsSplit[0] + "<=" + originConsSplit[1] + "<=" + le;
+                        }else if(ge>0){
+                            originalConstraints[k] = ge + "<=" + originConsSplit[1] + "<=" + originConsSplit[2];
+                        }
                     }
-                } else if (splitIIS.length == 3 && originConstraint.contains(splitIIS[1])) {
-                    String[] splitOrigin = originConstraint.split("<=");
-                    //如果原始约束经过<=分割后长度为2，且下标1的元素为浮点数或者整数
-                    if (splitOrigin.length == 2 && (regexDouble.matcher(splitOrigin[1]).matches() || regexInt.matcher(splitOrigin[1]).matches())
-                            && judgeEquals(Double.parseDouble(splitIIS[2]), Double.parseDouble(splitOrigin[1]))) {
-                        constraintsToModify.append(originConstraint).append(";");
-                        originalConstraints[k] = splitOrigin[0] + "<=" + maxRange;
-                    } else if (splitOrigin.length == 3 && judgeEquals(Double.parseDouble(splitIIS[2]), Double.parseDouble(splitOrigin[2]))) {
-                        constraintsToModify.append(originConstraint).append(";");
-                        originalConstraints[k] = splitOrigin[0] + "<=" + splitOrigin[1] + "<=" + maxRange;
+                } else if (originConsSplit.length == 2) {
+                    // 如果原始不等式类似于a-b<=5，则要求le>=0,且le-valueChange == originLe
+                    if((regexDouble.matcher(originConsSplit[1]).matches() || regexInt.matcher(originConsSplit[1]).matches())
+                            &&le>=0
+                            && (le-valueChange)==Double.parseDouble(originConsSplit[1])){
+                        String[] variables = originConsSplit[0].split("-");
+                        String originLeftVariable = variables[0];
+                        String originRightVariable = variables[1];
+                        if(originLeftVariable.contains(leftVariable)
+                                && originRightVariable.contains(rightVariable)){
+                            originalConstraints[k] = originConsSplit[0] + "<=" + le;
+                        }
+                    }
+
+                    // 如果原始不等式类似于 5<= a-b ，则要求ge>=0;
+                    if((regexDouble.matcher(originConsSplit[0]).matches() || regexInt.matcher(originConsSplit[0]).matches())
+                            && ge>=0
+                            && (ge+valueChange)==Double.parseDouble(originConsSplit[0])){
+                        String[] variables = originConsSplit[1].split("-");
+                        String originLeftVariable = variables[0];
+                        String originRightVariable = variables[1];
+                        if(originLeftVariable.contains(leftVariable)
+                                && originRightVariable.contains(rightVariable)){
+                            originalConstraints[k] = ge +"<=" + originConsSplit[1] ;
+                        }
                     }
                 }
+
             }
         }
-
-        //将新的约束组合起来
+        // 2. 将新的约束组合起来
         StringBuilder newConstraints = new StringBuilder();
         for (String constraint : originalConstraints) {
             newConstraints.append(constraint).append("\n");
         }
-        optimizeResult.setNewConstraints(newConstraints.toString());
-        optimizeResult.setValueChange("The constraints:\"" + constraintsToModify.toString() + "\" less than value were change to " + maxRange);
-        return optimizeResult;
+        return newConstraints.toString();
     }
 
     private static boolean judgeEquals(double v, double v1) {
@@ -399,48 +470,92 @@ public class ChangeConstant {
     }
 
     public static void main(String[] args) {
-        //测试方法 changeValue
-//        String constraints = "0<=x-y<=5\n6<=x-y<=20\ny-z<=3";
-//        String iisConstraints[] = {"x-y<=5.0", "6<=x-y"};
-//        OptimizeResult optimizeResult = ChangeConstant.changeValue(constraints,iisConstraints);
-//        System.out.println(optimizeResult.getNewConstraints());
-//        System.out.println(optimizeResult);
 
-        //测试extendRange
 
         String inequalities =
-//                "IloRange  : -infinity <= (-1.0*b1 + 1.0*c2) <= 4.0\n" +
-//                " IloRange  : 5.0 <= (-1.0*b1 + 1.0*d2) <= infinity\n" +
-//                " IloRange  : 12.0 <= (-1.0*d3 + 1.0*d4) <= infinity\n" +
-//                " IloRange  : 12.0 <= (1.0*f2 - 1.0*f1) <= infinity\n" +
-//                " IloRange  : 12.0 <= (-1.0*j5 + 1.0*j6) <= infinity\n" +
-//                " IloRange  : 12.0 <= (1.0*j8 - 1.0*j7) <= infinity\n" +
-//                " IloRange  : 0.0 <= (-1.0*d2 + 1.0*d3) <= infinity\n" +
-//                " IloRange  : 0.0 <= (-1.0*d4 + 1.0*f1) <= infinity\n" +
-//                " IloRange  : 0.0 <= (-1.0*f2 + 1.0*j2) <= infinity\n" +
-//                " IloRange  : 0.0 <= (-1.0*j2 + 1.0*j3) <= infinity\n" +
-//                " IloRange  : 0.0 <= (1.0*j5 - 1.0*j3) <= infinity\n" +
-//                " IloRange  : 0.0 <= (-1.0*j6 + 1.0*j7) <= infinity\n" +
-//                " IloRange  : 0.0 <= (-1.0*j8 + 1.0*j9) <= infinity\n" +
-//                " IloRange  : 0.0 <= (-1.0*j9 + 1.0*j10) <= infinity\n" +
-//                " IloRange  : 0.0 <= (-1.0*j10 + 1.0*j12) <= infinity\n" +
-//                " IloRange  : 0.0 <= (-1.0*j12 + 1.0*m4) <= infinity\n" +
-//                " IloRange  : 0.0 <= (-1.0*m4 + 1.0*b5) <= infinity\n" +
-//                " IloRange  : 0.0 <= (-1.0*b5 + 1.0*c1) <= infinity\n" +
-//                " IloRange  : 0.0 <= (1.0*c2 - 1.0*c1) <= infinity\n" +
-                " IloRange  : 5.0 <= (1.0*a - 1.0*b) <= infinity\n" +
-                        " IloRange  : 7.0 <= (1.0*b - 1.0*d) <= infinity\n" +
+                "IloRange  : -infinity <= (-1.0*b1 + 1.0*c2) <= 4.0\n" +
+                        " IloRange  : 5.0 <= (-1.0*b1 + 1.0*d2) <= infinity\n" +
+                        " IloRange  : 12.0 <= (-1.0*d3 + 1.0*d4) <= infinity\n" +
+                        " IloRange  : 12.0 <= (1.0*f2 - 1.0*f1) <= infinity\n" +
+                        " IloRange  : 12.0 <= (-1.0*j5 + 1.0*j6) <= infinity\n" +
+                        " IloRange  : 12.0 <= (1.0*j8 - 1.0*j7) <= infinity\n" +
+                        " IloRange  : 0.0 <= (-1.0*d2 + 1.0*d3) <= infinity\n" +
+                        " IloRange  : 0.0 <= (-1.0*d4 + 1.0*f1) <= infinity\n" +
+                        " IloRange  : 0.0 <= (-1.0*f2 + 1.0*j2) <= infinity\n" +
+                        " IloRange  : 0.0 <= (-1.0*j2 + 1.0*j3) <= infinity\n" +
+                        " IloRange  : 0.0 <= (1.0*j5 - 1.0*j3) <= infinity\n" +
+                        " IloRange  : 0.0 <= (-1.0*j6 + 1.0*j7) <= infinity\n" +
+                        " IloRange  : 0.0 <= (-1.0*j8 + 1.0*j9) <= infinity\n" +
+                        " IloRange  : 0.0 <= (-1.0*j9 + 1.0*j10) <= infinity\n" +
+                        " IloRange  : 0.0 <= (-1.0*j10 + 1.0*j12) <= infinity\n" +
+                        " IloRange  : 0.0 <= (-1.0*j12 + 1.0*m4) <= infinity\n" +
+                        " IloRange  : 0.0 <= (-1.0*m4 + 1.0*b5) <= infinity\n" +
+                        " IloRange  : 0.0 <= (-1.0*b5 + 1.0*c1) <= infinity\n" +
+                        " IloRange  : 0.0 <= (1.0*c2 - 1.0*c1) <= infinity\n"+
+
+                        " IloRange  : 5.0 <= (1.0*a - 1.0*b) <= infinity\n" +
                         " IloRange  : 6.0 <= (1.0*b - 1.0*c) <= infinity\n" +
-                        " IloRange  : 3.0 <= (1.0*b - 1.0*e) <= infinity\n" +
-                        " IloRange  : 4.0 <= (1.0*a - 1.0*e) <= infinity\n" +
-                        " IloRange  : 7.0 <= (1.0*b - 1.0*c) <= infinity\n" +
-                        " IloRange  : -infinity <= (1.0*a - 1.0*c) <= 6.0\n" +
-                        " IloRange  : -infinity <= (1.0*b - 1.0*d) <= 6.0\n"+"" +
-                        " IloRange  : -infinity <= (1.0*d - 1.0*e) <= 6.0";
-//                " IloRange  : 5.0 <= (1.0*a - 1.0*b) <= infinity\n"+
-//                " IloRange  : 7.0 <= (1.0*b - 1.0*c) <= infinity\n"+
-//                " IloRange  : -infinity <= (1.0*a - 1.0*c) <= 6.0";
+                        " IloRange  : 6.0 <= (1.0*c - 1.0*d) <= infinity\n" +
+                        " IloRange  : 6.0 <= (1.0*d - 1.0*e) <= infinity\n" +
+                        " IloRange  : 6.0 <= (1.0*e - 1.0*f) <= infinity\n" +
+                        " IloRange  : -infinity <= (1.0*a - 1.0*f) <= 16.0\n" +
+
+                        //情况 2
+                        " IloRange  : -infinity <= (1.0*b - 1.0*f) <= 16.0\n" +
+
+                        // 情况3
+                        " IloRange  : -infinity <= (1.0*b - 1.0*c) <= 2.0\n" +
+
+                        //情况4
+                        " IloRange  : 25.0 <= (1.0*g - 1.0*h) <= infinity\n" +
+                        " IloRange  : -infinity <= (1.0*g - 1.0*d) <= 6.0\n" +
+                        " IloRange  : -infinity <= (1.0*d - 1.0*e) <= 4.0\n" +
+                        " IloRange  : -infinity <= (1.0*e - 1.0*h) <= 6.0"
+;
+
+
         String[] inequalitiesAfterResolve = IISConstraintResolve.resolveIIS(inequalities.split("\n"));
-        new ChangeConstant().extendRange("", inequalitiesAfterResolve);
+
+        for (String str : inequalitiesAfterResolve) {
+            System.out.println(str);
+        }
+
+        //结合使用cplex来做
+        try {
+            IloNumVar[][] var = new IloNumVar[1][];
+            IloCplex model = new IloCplex();
+            LpModel lpModel = new LpModel();
+            StringBuilder stringBuilder = new StringBuilder();
+            for (String str : inequalitiesAfterResolve) {
+                stringBuilder.append(str).append("\n");
+            }
+            lpModel.createModel(stringBuilder.toString(), model, var, null, false);
+            ArrayList<OptimizeResult> optimizeResults = new ArrayList<OptimizeResult>();
+            String allConstraints = stringBuilder.toString();
+            while (!model.solve()) {
+                IloConstraint[] cons = lpModel.getIIS(model);
+                for (IloConstraint iloConstraint : cons) {
+                    System.out.println(iloConstraint);
+                }
+                OptimizeResult optimizeResult = new ChangeConstant().changeValue(allConstraints, cons, null, 3);
+                allConstraints = optimizeResult.getNewConstraints();
+                optimizeResults.add(optimizeResult);
+                model = new IloCplex();
+                var = new IloNumVar[1][];
+                lpModel.createModel(optimizeResult.getNewConstraints(),model,var,null,false);
+                try {
+                    TimeUnit.SECONDS.sleep(3);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            for(OptimizeResult optimizeResult:optimizeResults){
+                System.out.println(optimizeResult.getValueChange());
+            }
+        } catch (IloException e) {
+            e.printStackTrace();
+        }
+
     }
 }
